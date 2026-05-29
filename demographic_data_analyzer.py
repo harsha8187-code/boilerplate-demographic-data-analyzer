@@ -1,69 +1,50 @@
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
 
+# 1. Import data
+df = pd.read_csv('medical_examination.csv')
 
-def calculate_demographic_data(print_data=True):
-    # Read data from file
-    df = None
+# 2. Add 'overweight' column
+# BMI = weight (kg) / (height (m))^2. If BMI > 25, then overweight = 1, else 0.
+df['overweight'] = (df['weight'] / (df['height'] / 100)**2 > 25).astype(int)
 
-    # How many of each race are represented in this dataset? This should be a Pandas series with race names as the index labels.
-    race_count = None
+# 3. Normalize data by making 0 always good and 1 always bad.
+# If values are 1, set to 0. If values > 1, set to 1.
+df['cholesterol'] = (df['cholesterol'] > 1).astype(int)
+df['gluc'] = (df['gluc'] > 1).astype(int)
 
-    # What is the average age of men?
-    average_age_men = None
+# 4. Draw Categorical Plot
+def draw_cat_plot():
+    # Create DataFrame for cat plot using pd.melt
+    df_cat = pd.melt(df, id_vars=['cardio'], value_vars=['cholesterol', 'gluc', 'smoke', 'alco', 'active', 'overweight'])
 
-    # What is the percentage of people who have a Bachelor's degree?
-    percentage_bachelors = None
+    # Group and reformat the data to split it by 'cardio'.
+    df_cat = df_cat.groupby(['cardio', 'variable', 'value']).size().reset_index(name='total')
 
-    # What percentage of people with advanced education (`Bachelors`, `Masters`, or `Doctorate`) make more than 50K?
-    # What percentage of people without advanced education make more than 50K?
+    # Draw the catplot
+    fig = sns.catplot(x='variable', y='total', hue='value', col='cardio', data=df_cat, kind='bar').fig
+    return fig
 
-    # with and without `Bachelors`, `Masters`, or `Doctorate`
-    higher_education = None
-    lower_education = None
+# 5. Draw Heat Map
+def draw_heat_map():
+    # Clean the data
+    df_heat = df[(df['ap_lo'] <= df['ap_hi']) &
+                 (df['height'] >= df['height'].quantile(0.025)) &
+                 (df['height'] <= df['height'].quantile(0.975)) &
+                 (df['weight'] >= df['weight'].quantile(0.025)) &
+                 (df['weight'] <= df['weight'].quantile(0.975))]
 
-    # percentage with salary >50K
-    higher_education_rich = None
-    lower_education_rich = None
+    # Calculate the correlation matrix
+    corr = df_heat.corr()
 
-    # What is the minimum number of hours a person works per week (hours-per-week feature)?
-    min_work_hours = None
+    # Generate a mask for the upper triangle
+    mask = np.triu(np.ones_like(corr, dtype=bool))
 
-    # What percentage of the people who work the minimum number of hours per week have a salary of >50K?
-    num_min_workers = None
+    # Set up the matplotlib figure
+    fig, ax = plt.subplots(figsize=(10, 10))
 
-    rich_percentage = None
-
-    # What country has the highest percentage of people that earn >50K?
-    highest_earning_country = None
-    highest_earning_country_percentage = None
-
-    # Identify the most popular occupation for those who earn >50K in India.
-    top_IN_occupation = None
-
-    # DO NOT MODIFY BELOW THIS LINE
-
-    if print_data:
-        print("Number of each race:\n", race_count) 
-        print("Average age of men:", average_age_men)
-        print(f"Percentage with Bachelors degrees: {percentage_bachelors}%")
-        print(f"Percentage with higher education that earn >50K: {higher_education_rich}%")
-        print(f"Percentage without higher education that earn >50K: {lower_education_rich}%")
-        print(f"Min work time: {min_work_hours} hours/week")
-        print(f"Percentage of rich among those who work fewest hours: {rich_percentage}%")
-        print("Country with highest percentage of rich:", highest_earning_country)
-        print(f"Highest percentage of rich people in country: {highest_earning_country_percentage}%")
-        print("Top occupations in India:", top_IN_occupation)
-
-    return {
-        'race_count': race_count,
-        'average_age_men': average_age_men,
-        'percentage_bachelors': percentage_bachelors,
-        'higher_education_rich': higher_education_rich,
-        'lower_education_rich': lower_education_rich,
-        'min_work_hours': min_work_hours,
-        'rich_percentage': rich_percentage,
-        'highest_earning_country': highest_earning_country,
-        'highest_earning_country_percentage':
-        highest_earning_country_percentage,
-        'top_IN_occupation': top_IN_occupation
-    }
+    # Draw the heatmap
+    sns.heatmap(corr, mask=mask, annot=True, fmt='.1f')
+    return fig
